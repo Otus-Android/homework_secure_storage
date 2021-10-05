@@ -3,6 +3,8 @@ package com.otus.securehomework.di
 import android.content.Context
 import com.otus.securehomework.data.repository.AuthRepository
 import com.otus.securehomework.data.repository.UserRepository
+import com.otus.securehomework.data.source.crypto.Keys
+import com.otus.securehomework.data.source.local.SecureUserPreferences
 import com.otus.securehomework.data.source.local.UserPreferences
 import com.otus.securehomework.data.source.network.AuthApi
 import com.otus.securehomework.data.source.network.UserApi
@@ -19,24 +21,24 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideRemoteDataSource(): RemoteDataSource {
-        return RemoteDataSource()
+    fun provideRemoteDataSource(
+        userPreferences: SecureUserPreferences
+    ): RemoteDataSource {
+        return RemoteDataSource(userPreferences)
     }
 
     @Provides
     fun provideAuthApi(
         remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
     ): AuthApi {
-        return remoteDataSource.buildApi(AuthApi::class.java, context)
+        return remoteDataSource.buildApi(AuthApi::class.java)
     }
 
     @Provides
     fun provideUserApi(
         remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
     ): UserApi {
-        return remoteDataSource.buildApi(UserApi::class.java, context)
+        return remoteDataSource.buildApi(UserApi::class.java)
     }
 
     @Singleton
@@ -49,10 +51,9 @@ object AppModule {
 
     @Provides
     fun provideAuthRepository(
-        authApi: AuthApi,
-        userPreferences: UserPreferences
+        authApi: AuthApi
     ): AuthRepository {
-        return AuthRepository(authApi, userPreferences)
+        return AuthRepository(authApi)
     }
 
     @Provides
@@ -61,4 +62,9 @@ object AppModule {
     ): UserRepository {
         return UserRepository(userApi)
     }
+
+    @Provides
+    @Singleton
+    fun provideSecureUserPreferences(@ApplicationContext context: Context, keys: Keys): SecureUserPreferences =
+        SecureUserPreferences(context, keys.getMasterKey())
 }
