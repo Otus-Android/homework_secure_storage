@@ -29,8 +29,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         viewModel.user.observe(viewLifecycleOwner, {
             when (it) {
                 is Response.Success -> {
-                    binding.progressbar.visible(false)
-                    updateUI(it.value.user)
+                    viewModel.checkAccessToken(it.value.user)
                 }
                 is Response.Loading -> {
                     binding.progressbar.visible(true)
@@ -38,6 +37,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 is Response.Failure -> {
                     handleApiError(it)
                 }
+            }
+        })
+        viewModel.isUserValid.observe(viewLifecycleOwner, {
+            if (it) {
+                binding.progressbar.visible(false)
+                updateUI((viewModel.user.value as Response.Success).value.user)
+            } else {
+                logout()
             }
         })
 

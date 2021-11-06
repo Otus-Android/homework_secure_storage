@@ -1,47 +1,48 @@
 package com.otus.securehomework.data.source.local
 
-import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import com.otus.securehomework.security.crypto.CIPHERTEXT_WRAPPER_ACCESS_TOKEN
+import com.otus.securehomework.security.crypto.CIPHERTEXT_WRAPPER_REFRESH_TOKEN
+import com.otus.securehomework.security.crypto.CryptographyManager
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject
-
-private const val dataStoreFile: String = "securePref"
 
 class UserPreferences
 @Inject constructor(
-    private val context: Context
+    private val cryptographyManager: CryptographyManager,
 ) {
-    private val Context.dataStore by preferencesDataStore(name = dataStoreFile)
 
-    val accessToken: Flow<String?>
-        get() = context.dataStore.data.map { preferences ->
-            preferences[ACCESS_TOKEN]
+    val accessToken: Flow<CharSequence?>
+        get() = flowOf(cryptographyManager.getCiphertextWrapperFromSharedPrefs(CIPHERTEXT_WRAPPER_ACCESS_TOKEN)?.let {
+            cryptographyManager.decryptData(it.ciphertext, cryptographyManager.getInitializedCipherForDecryption(it.initializationVector))
+        })
+
+    val refreshToken: Flow<CharSequence?>
+        get() = flowOf(cryptographyManager.getCiphertextWrapperFromSharedPrefs(CIPHERTEXT_WRAPPER_REFRESH_TOKEN)?.let {
+            cryptographyManager.decryptData(it.ciphertext, cryptographyManager.getInitializedCipherForDecryption(it.initializationVector))
+        })
+
+    suspend fun saveAccessTokens(accessToken: CharSequence?, refreshToken: CharSequence?) {
+        accessToken?.let {
+            // todo сейчас падает на api 30 (android 11) с ошибкой:
+            // Caused by: android.security.KeyStoreException: Incompatible padding mode
+            // если выбираю другие параметры для Cipher, то еще какая-нибудь ошибка будет
+            val encryptedAccessTokenWrapper = cryptographyManager.encryptData(it.toString())
+            cryptographyManager.persistCiphertextWrapperToSharedPrefs(
+                encryptedAccessTokenWrapper,
+                CIPHERTEXT_WRAPPER_ACCESS_TOKEN
+            )
         }
-
-    val refreshToken: Flow<String?>
-        get() = context.dataStore.data.map { preferences ->
-            preferences[REFRESH_TOKEN]
-
-        }
-
-    suspend fun saveAccessTokens(accessToken: String?, refreshToken: String?) {
-        context.dataStore.edit { preferences ->
-            accessToken?.let { preferences[ACCESS_TOKEN] = it }
-            refreshToken?.let { preferences[REFRESH_TOKEN] = it }
+        refreshToken?.let {
+            val encryptedRefreshTokenWrapper = cryptographyManager.encryptData(it.toString())
+            cryptographyManager.persistCiphertextWrapperToSharedPrefs(
+                encryptedRefreshTokenWrapper,
+                CIPHERTEXT_WRAPPER_REFRESH_TOKEN
+            )
         }
     }
 
     suspend fun clear() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
-    }
-
-    companion object {
-        private val ACCESS_TOKEN = stringPreferencesKey("key_access_token")
-        private val REFRESH_TOKEN = stringPreferencesKey("key_refresh_token")
+        cryptographyManager.clearCiphertextWrapperSharedPrefs()
     }
 }
