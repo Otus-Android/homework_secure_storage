@@ -49,8 +49,8 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
 
     @Inject
     lateinit var cryptographyManager: CryptographyManager
-    private val ciphertextWrapper
-        get() = cryptographyManager.getCiphertextWrapperFromSharedPrefs(CIPHERTEXT_WRAPPER_ACCESS_TOKEN)
+    private val encryptionOutput
+        get() = cryptographyManager.getEncryptionOutputFromSharedPrefs(CIPHERTEXT_WRAPPER_ACCESS_TOKEN)
 
     private lateinit var biometricPrompt: BiometricPrompt
     private lateinit var promptInfo: BiometricPrompt.PromptInfo
@@ -100,10 +100,10 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
         setBiometricPromptInfo()
 
         binding.buttonBiometrics.setOnClickListener {
-            if (ciphertextWrapper != null && checkBiometricsCredentials()) {
+            if (encryptionOutput != null && checkBiometricsCredentials()) {
                 authenticateBiometric()
             }
-            if (ciphertextWrapper == null) {
+            if (encryptionOutput == null) {
                 Toast.makeText(
                     requireContext(),
                     "Authenticate with login and password first!", Toast.LENGTH_SHORT
@@ -146,9 +146,16 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                     )
                         .show()
 
-                    ciphertextWrapper?.let { textWrapper ->
+                    encryptionOutput?.let { encryptionOutput ->
                         result.cryptoObject?.cipher?.let {
-                            val plainAccessToken = cryptographyManager.decryptData(textWrapper.ciphertext, it)
+                            //val plainAccessToken = cryptographyManager.decryptData(textWrapper.ciphertext, it)
+                            val plainAccessToken = cryptographyManager.decrypt(
+                                cryptographyManager.generateAesKey(),
+                                encryptionOutput.iv,
+                                encryptionOutput.aad,
+                                encryptionOutput.tag,
+                                encryptionOutput.ciphertext
+                            )
                             // Now that you have the token, you can query server for everything else
                             Log.d("MY_APP_TAG", "Decrypted Access Token: " + plainAccessToken)
                         }
@@ -223,8 +230,8 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
     @RequiresApi(Build.VERSION_CODES.N)
     private fun authenticateBiometric() {
         // Exceptions are unhandled within this snippet.
-        ciphertextWrapper?.initializationVector?.let {
-            val cipher = cryptographyManager.getInitializedCipherForDecryption(it)
+        encryptionOutput?.let {
+            val cipher = cryptographyManager.getInitializedCipherForDecryption(cryptographyManager.generateAesKey(), it.iv, it.aad)
             biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
         }
         //biometricPrompt.authenticate(promptInfo)

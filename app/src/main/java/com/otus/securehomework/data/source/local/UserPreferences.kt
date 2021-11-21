@@ -13,32 +13,26 @@ class UserPreferences
 ) {
 
     val accessToken: Flow<CharSequence?>
-        get() = flowOf(cryptographyManager.getCiphertextWrapperFromSharedPrefs(CIPHERTEXT_WRAPPER_ACCESS_TOKEN)?.let {
-            cryptographyManager.decryptData(it.ciphertext, cryptographyManager.getInitializedCipherForDecryption(it.initializationVector))
+        get() = flowOf(cryptographyManager.getEncryptionOutputFromSharedPrefs(CIPHERTEXT_WRAPPER_ACCESS_TOKEN)?.let {
+            val secretKey = cryptographyManager.generateAesKey()
+            cryptographyManager.decrypt(secretKey, it.iv, it.aad, it.tag, it.ciphertext).decodeToString()
         })
 
     val refreshToken: Flow<CharSequence?>
-        get() = flowOf(cryptographyManager.getCiphertextWrapperFromSharedPrefs(CIPHERTEXT_WRAPPER_REFRESH_TOKEN)?.let {
-            cryptographyManager.decryptData(it.ciphertext, cryptographyManager.getInitializedCipherForDecryption(it.initializationVector))
+        get() = flowOf(cryptographyManager.getEncryptionOutputFromSharedPrefs(CIPHERTEXT_WRAPPER_REFRESH_TOKEN)?.let {
+            val secretKey = cryptographyManager.generateAesKey()
+            cryptographyManager.decrypt(secretKey, it.iv, it.aad, it.tag, it.ciphertext).decodeToString()
         })
 
     suspend fun saveAccessTokens(accessToken: CharSequence?, refreshToken: CharSequence?) {
+        val secretKey = cryptographyManager.generateAesKey()
         accessToken?.let {
-            // todo сейчас падает на api 30 (android 11) с ошибкой:
-            // Caused by: android.security.KeyStoreException: Incompatible padding mode
-            // если выбираю другие параметры для Cipher, то еще какая-нибудь ошибка будет
-            val encryptedAccessTokenWrapper = cryptographyManager.encryptData(it.toString())
-            cryptographyManager.persistCiphertextWrapperToSharedPrefs(
-                encryptedAccessTokenWrapper,
-                CIPHERTEXT_WRAPPER_ACCESS_TOKEN
-            )
+            val output = cryptographyManager.encrypt(secretKey, it.toString().toByteArray())
+            cryptographyManager.persistEncryptionOutputToSharedPrefs(output, CIPHERTEXT_WRAPPER_ACCESS_TOKEN)
         }
         refreshToken?.let {
-            val encryptedRefreshTokenWrapper = cryptographyManager.encryptData(it.toString())
-            cryptographyManager.persistCiphertextWrapperToSharedPrefs(
-                encryptedRefreshTokenWrapper,
-                CIPHERTEXT_WRAPPER_REFRESH_TOKEN
-            )
+            val output = cryptographyManager.encrypt(secretKey, it.toString().toByteArray())
+            cryptographyManager.persistEncryptionOutputToSharedPrefs(output, CIPHERTEXT_WRAPPER_REFRESH_TOKEN)
         }
     }
 
