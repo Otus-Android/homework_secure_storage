@@ -1,8 +1,8 @@
 package com.otus.securehomework.di
 
-import android.content.Context
 import com.otus.securehomework.BuildConfig
 import com.otus.securehomework.data.repository.TokenAuthenticator
+import com.otus.securehomework.data.source.local.UserPreferences
 import com.otus.securehomework.data.source.network.TokenRefreshApi
 import okhttp3.Authenticator
 import okhttp3.OkHttpClient
@@ -16,9 +16,9 @@ class RemoteDataSource {
 
     fun <Api> buildApi(
         api: Class<Api>,
-        context: Context
+        userPreferences: UserPreferences
     ): Api {
-        val authenticator = TokenAuthenticator(context, buildTokenApi())
+        val authenticator = TokenAuthenticator(buildTokenApi(), userPreferences)
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(getRetrofitClient(authenticator))
