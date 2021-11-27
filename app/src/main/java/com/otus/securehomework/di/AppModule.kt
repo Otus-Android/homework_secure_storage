@@ -22,7 +22,7 @@ object AppModule {
     @Singleton
     @Provides
     fun provideRemoteDataSource(
-        userPreferences: SecuredPrefs
+        userPreferences: UserPreferences
     ): RemoteDataSource {
         return RemoteDataSource(userPreferences)
     }

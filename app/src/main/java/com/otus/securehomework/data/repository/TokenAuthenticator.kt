@@ -12,17 +12,16 @@ import okhttp3.Route
 import javax.inject.Inject
 import com.otus.securehomework.data.Response as DataResponse
 
-
 class TokenAuthenticator @Inject constructor(
     private val tokenApi: TokenRefreshApi,
-    private val prefs: SecuredPrefs
+    private val preferences: SecuredPrefs
 ) : Authenticator, BaseRepository(tokenApi) {
 
     override fun authenticate(route: Route?, response: Response): Request? {
         return runBlocking {
             when (val tokenResponse = getUpdatedToken()) {
                 is DataResponse.Success -> {
-                    prefs.saveAccessTokens(
+                    preferences.saveAccessTokens(
                         tokenResponse.value.access_token,
                         tokenResponse.value.refresh_token
                     )
@@ -36,7 +35,7 @@ class TokenAuthenticator @Inject constructor(
     }
 
     private suspend fun getUpdatedToken(): DataResponse<TokenResponse> {
-        val refreshToken = prefs.refreshToken.first()
+        val refreshToken = preferences.refreshToken.first()
         return safeApiCall {
             tokenApi.refreshAccessToken(refreshToken)
         }
