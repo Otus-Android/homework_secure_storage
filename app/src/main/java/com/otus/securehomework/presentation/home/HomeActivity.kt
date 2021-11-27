@@ -5,16 +5,18 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.otus.securehomework.R
-import com.otus.securehomework.data.source.local.UserPreferences
+import com.otus.securehomework.data.source.local.SecuredPrefs
 import com.otus.securehomework.presentation.auth.AuthActivity
 import com.otus.securehomework.presentation.startNewActivity
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class HomeActivity : AppCompatActivity() {
 
     @Inject
-    lateinit var userPreferences: UserPreferences
+    lateinit var userPreferences: SecuredPrefs
 
     private val viewModel by viewModels<HomeViewModel>()
 

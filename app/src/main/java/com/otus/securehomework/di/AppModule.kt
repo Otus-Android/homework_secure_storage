@@ -3,6 +3,8 @@ package com.otus.securehomework.di
 import android.content.Context
 import com.otus.securehomework.data.repository.AuthRepository
 import com.otus.securehomework.data.repository.UserRepository
+import com.otus.securehomework.data.source.local.SecuredCryptoKey
+import com.otus.securehomework.data.source.local.SecuredPrefs
 import com.otus.securehomework.data.source.local.UserPreferences
 import com.otus.securehomework.data.source.network.AuthApi
 import com.otus.securehomework.data.source.network.UserApi
@@ -19,24 +21,25 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideRemoteDataSource(): RemoteDataSource {
-        return RemoteDataSource()
+    fun provideRemoteDataSource(
+        userPreferences: SecuredPrefs
+    ): RemoteDataSource {
+        return RemoteDataSource(userPreferences)
     }
+
 
     @Provides
     fun provideAuthApi(
         remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
     ): AuthApi {
-        return remoteDataSource.buildApi(AuthApi::class.java, context)
+        return remoteDataSource.buildApi(AuthApi::class.java)
     }
 
     @Provides
     fun provideUserApi(
         remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
     ): UserApi {
-        return remoteDataSource.buildApi(UserApi::class.java, context)
+        return remoteDataSource.buildApi(UserApi::class.java)
     }
 
     @Singleton
@@ -48,9 +51,18 @@ object AppModule {
     }
 
     @Provides
+    @Singleton
+    fun provideSecuredUserPreferences(
+        @ApplicationContext context: Context,
+        securedCryptoKey: SecuredCryptoKey
+    ): SecuredPrefs {
+        return SecuredPrefs(context, securedCryptoKey.masterKey)
+    }
+
+    @Provides
     fun provideAuthRepository(
         authApi: AuthApi,
-        userPreferences: UserPreferences
+        userPreferences: SecuredPrefs
     ): AuthRepository {
         return AuthRepository(authApi, userPreferences)
     }
