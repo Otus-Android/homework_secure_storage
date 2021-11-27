@@ -3,8 +3,6 @@ package com.otus.securehomework.di
 import com.otus.securehomework.BuildConfig
 import com.otus.securehomework.data.repository.TokenAuthenticator
 import com.otus.securehomework.data.source.local.SecuredPrefs
-import com.otus.securehomework.data.source.local.UserPreferences
-import com.otus.securehomework.data.source.local.SecuredPrefs
 import com.otus.securehomework.data.source.network.TokenRefreshApi
 import okhttp3.Authenticator
 import okhttp3.OkHttpClient
