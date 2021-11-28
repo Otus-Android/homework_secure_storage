@@ -13,6 +13,7 @@ class SecuredPrefs @Inject constructor(context: Context, masterKey: MasterKey) {
         private const val PREF_NAME = "secured_prefs"
         private const val ACCESS_TOKEN = "secured_access_token"
         private const val REFRESH_TOKEN = "secured_refresh_token"
+        private const val BIOMETRIC_ENABLED = "biometrics_enabled_state"
         private const val DEFAULT = ""
     }
 
@@ -28,16 +29,24 @@ class SecuredPrefs @Inject constructor(context: Context, masterKey: MasterKey) {
     val refreshToken: Flow<String>
         get() = flowOf(prefs.getString(REFRESH_TOKEN, DEFAULT) ?: DEFAULT)
 
+    val isBiometricsEnabled: Flow<Boolean>
+        get() = flowOf(prefs.getBoolean(BIOMETRIC_ENABLED, false))
+
     fun saveAccessTokens(accessToken: String?, refreshToken: String?) {
         prefs.edit().putString(ACCESS_TOKEN, accessToken).apply()
         prefs.edit().putString(REFRESH_TOKEN, refreshToken).apply()
+    }
 
+    fun updateBiometricsState(state: Boolean) {
+        prefs.edit().putBoolean(BIOMETRIC_ENABLED, state).apply()
+    }
+
+    fun clearBiometricsState(){
+        prefs.edit().remove(BIOMETRIC_ENABLED).apply()
     }
 
     fun clear() {
         prefs.edit().remove(ACCESS_TOKEN).apply()
         prefs.edit().remove(REFRESH_TOKEN).apply()
     }
-
-
 }
