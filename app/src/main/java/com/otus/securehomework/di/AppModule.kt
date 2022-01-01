@@ -6,6 +6,7 @@ import com.otus.securehomework.data.repository.UserRepository
 import com.otus.securehomework.data.source.local.UserPreferences
 import com.otus.securehomework.data.source.network.AuthApi
 import com.otus.securehomework.data.source.network.UserApi
+import com.otus.securehomework.security.AppSecurity
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,32 +20,31 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideRemoteDataSource(): RemoteDataSource {
-        return RemoteDataSource()
+    fun provideRemoteDataSource(userPreferences: UserPreferences): RemoteDataSource {
+        return RemoteDataSource(userPreferences)
     }
 
     @Provides
     fun provideAuthApi(
-        remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
+        remoteDataSource: RemoteDataSource
     ): AuthApi {
-        return remoteDataSource.buildApi(AuthApi::class.java, context)
+        return remoteDataSource.buildApi(AuthApi::class.java)
     }
 
     @Provides
     fun provideUserApi(
-        remoteDataSource: RemoteDataSource,
-        @ApplicationContext context: Context
+        remoteDataSource: RemoteDataSource
     ): UserApi {
-        return remoteDataSource.buildApi(UserApi::class.java, context)
+        return remoteDataSource.buildApi(UserApi::class.java)
     }
 
     @Singleton
     @Provides
     fun provideUserPreferences(
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        appSecurity: AppSecurity
     ): UserPreferences {
-        return UserPreferences(context)
+        return UserPreferences(context, appSecurity)
     }
 
     @Provides
