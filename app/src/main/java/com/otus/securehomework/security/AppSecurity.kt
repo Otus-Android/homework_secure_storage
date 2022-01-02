@@ -7,6 +7,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.annotation.RequiresApi
+import androidx.biometric.BiometricPrompt
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.math.BigInteger
@@ -22,6 +23,7 @@ import javax.security.auth.x500.X500Principal
 
 private const val AES_SPECIFICATION = "AES/GCM/NoPadding"
 private const val AES_KEY_ALIAS = "AES_app_security_key"
+private const val AES_ALGORITHM = "AES"
 
 private const val RSA_KEY_ALIAS = "RSA_app_security_key"
 private const val RSA_ALGORITHM = "RSA"
@@ -29,6 +31,8 @@ private const val RSA_MODE_LESS_THAN_M = "RSA/ECB/PKCS1Padding"
 private const val KEY_LENGTH = 256
 private const val ENCRYPTED_KEY_NAME = "RSAEncryptedKeysKeyName"
 private const val PROVIDER = "AndroidKeyStore"
+private const val TAG_LENGTH = 128
+private const val IV_KEY = "iv_key"
 
 class AppSecurity @Inject constructor(
     @ApplicationContext private val context: Context
@@ -49,30 +53,68 @@ class AppSecurity @Inject constructor(
     }
 
     //<editor-fold desc="Public API">
-    fun encryptData(keyAlias: String = AES_KEY_ALIAS, text: String): ByteArray {
-        cipher.init(Cipher.ENCRYPT_MODE, generateSecretKey(keyAlias))
+    val encryptor: BiometricPrompt.CryptoObject by lazy(LazyThreadSafetyMode.NONE) {
+        val iv = getIv()
+        val cipher = cipher.apply {
+            init(Cipher.ENCRYPT_MODE, generateSecretKey(), GCMParameterSpec(TAG_LENGTH, iv))
+        }
+        BiometricPrompt.CryptoObject(cipher)
+    }
+
+    fun getDecryptor(): BiometricPrompt.CryptoObject {
+        val ivString = securePrefs.get(IV_KEY) ?: throw IllegalStateException("IV should have been saved!")
+        val ivBytes = Base64.decode(ivString, Base64.NO_WRAP)
+        val decryptor = cipher.apply {
+            init(Cipher.DECRYPT_MODE, generateSecretKey(), GCMParameterSpec(TAG_LENGTH, ivBytes))
+        }
+        return BiometricPrompt.CryptoObject(decryptor)
+    }
+
+    fun encryptData(text: String): ByteArray {
+        val ivBytes = getIv()
+        val cipher = cipher.apply {
+            init(
+                Cipher.ENCRYPT_MODE,
+                generateSecretKey(),
+                GCMParameterSpec(TAG_LENGTH, ivBytes)
+            )
+        }
         return cipher.doFinal(text.toByteArray(charset("UTF-8")))
     }
 
-    fun decryptData(keyAlias: String = AES_KEY_ALIAS, encryptedData: ByteArray): String {
-        val secretKey = getSecretKey(keyAlias)
-            ?: throw IllegalStateException("Cannot decrypt data, that hasn't been previously encrypted.")
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, cipher.iv))
+    fun decryptData(encryptedData: ByteArray): String {
+        val secretKey = keyStore.getKey(AES_KEY_ALIAS, null) as? SecretKey ?:
+        throw IllegalStateException("Cannot decrypt data that hasn't been previously encrypted")
+
+        val ivString = securePrefs.get(IV_KEY) ?: throw IllegalStateException("IV should have been saved!")
+        val ivBytes = Base64.decode(ivString, Base64.NO_WRAP)
+
+        val cipher = cipher.apply {
+            init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(TAG_LENGTH, ivBytes))
+        }
         return cipher.doFinal(encryptedData).toString(charset("UTF-8"))
     }
     //</editor-fold>
 
-    private fun getSecretKey(keyAlias: String): SecretKey? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            keyStore.getKey(keyAlias, null) as? SecretKey
+    private fun getIv(): ByteArray {
+        var ivString = securePrefs.get(IV_KEY)
+        val ivBytes = if (ivString.isNullOrEmpty()) {
+            val newBytes = ByteArray(12)
+            SecureRandom().apply {
+                nextBytes(newBytes)
+            }
+            ivString = Base64.encodeToString(newBytes, Base64.NO_WRAP)
+            securePrefs.set(IV_KEY, ivString)
+            newBytes
         } else {
-            getAesSecretKeyLessThanM()
+            Base64.decode(ivString, Base64.NO_WRAP)
         }
+        return ivBytes
     }
 
-    private fun generateSecretKey(keyAlias: String): SecretKey {
+    private fun generateSecretKey(): SecretKey {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            keyStore.getKey(keyAlias, null) as? SecretKey ?: generateAesSecretKey()
+            keyStore.getKey(AES_KEY_ALIAS, null) as? SecretKey ?: generateAesSecretKey()
         } else {
             getAesSecretKeyLessThanM() ?: generateAesSecretKey()
         }
@@ -122,7 +164,7 @@ class AppSecurity @Inject constructor(
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
-    private fun getKeyGenerator() = KeyGenerator.getInstance("AES", PROVIDER).apply {
+    private fun getKeyGenerator() = KeyGenerator.getInstance(AES_ALGORITHM, PROVIDER).apply {
         init(getKeyGenSpec())
     }
 
@@ -130,11 +172,11 @@ class AppSecurity @Inject constructor(
     private fun getKeyGenSpec(): KeyGenParameterSpec {
         return KeyGenParameterSpec.Builder(
             AES_KEY_ALIAS,
-            KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_DECRYPT
+            KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_ENCRYPT
         )
-            .setBlockModes(KeyProperties.BLOCK_MODE_ECB)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
-            .setUserAuthenticationRequired(true)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setUserAuthenticationRequired(false)
             .setRandomizedEncryptionRequired(false)
             .build()
     }

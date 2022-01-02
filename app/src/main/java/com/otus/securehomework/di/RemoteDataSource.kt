@@ -11,7 +11,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 
-private const val BASE_URL = "http://simplifiedcoding.tech/mywebapp/public/api/"
+private const val BASE_URL = "https://auth.tragltech.com/otus/api/"
 
 class RemoteDataSource @Inject constructor(
     private val userPreferences: UserPreferences

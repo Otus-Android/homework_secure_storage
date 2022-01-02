@@ -2,10 +2,7 @@ package com.otus.securehomework.data.source.local
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.MutablePreferences
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.otus.securehomework.security.AppSecurity
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +34,17 @@ class UserPreferences
         get() = context.dataStore.data.secureMap { preferences ->
             preferences[REFRESH_TOKEN]
         }
+
+    val isBiometricsEnabled: Flow<Boolean>
+        get() = context.dataStore.data.map { prefs ->
+            prefs[IS_BIOMETRICS_ENABLED] ?: true
+        }
+
+    suspend fun saveIsBioMetricsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[IS_BIOMETRICS_ENABLED] = enabled
+        }
+    }
 
     suspend fun saveAccessTokensSecurely(accessToken: String?, refreshToken: String?) {
         accessToken?.let { accessTokenStr ->
@@ -94,5 +102,6 @@ class UserPreferences
     companion object {
         private val ACCESS_TOKEN = stringPreferencesKey("key_access_token")
         private val REFRESH_TOKEN = stringPreferencesKey("key_refresh_token")
+        private val IS_BIOMETRICS_ENABLED = booleanPreferencesKey("key_is_biometrics_enabled")
     }
 }
