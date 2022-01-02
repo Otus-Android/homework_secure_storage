@@ -20,6 +20,6 @@ class AuthRepository
     }
 
     suspend fun saveAccessTokens(accessToken: String, refreshToken: String) {
-        preferences.saveAccessTokens(accessToken, refreshToken)
+        preferences.saveAccessTokensSecurely(accessToken, refreshToken)
     }
 }
